@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% block title %}SenZone — Best Amazon Deals Today{% endblock %}
+
+{% block content %}
+
+<!-- HERO BANNER -->
+<section class="hero-section">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <div class="hero-eyebrow"><i class="bi bi-amazon me-2"></i>Amazon Affiliate Deals</div>
+        <h1 class="hero-title">Shop Smarter.<br><span class="hero-title--highlight">Save Bigger.</span></h1>
+        <p class="hero-sub">We handpick the best Amazon products every day — electronics, home, fashion, and more. Click any product to grab the deal directly on Amazon.</p>
+        <div class="hero-cta-row">
+          <a href="#products" class="btn amz-btn-primary">
+            <i class="bi bi-bag-fill me-2"></i>Browse Deals
+          </a>
+          <div class="hero-trust">
+            <span class="trust-pill"><i class="bi bi-star-fill"></i> Top Rated</span>
+            <span class="trust-pill"><i class="bi bi-truck"></i> Prime Eligible</span>
+            <span class="trust-pill"><i class="bi bi-shield-check"></i> Verified Links</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-block">
+        <div class="hero-visual">
+          <div class="hero-visual__card hero-visual__card--1"><i class="bi bi-stars"></i> Deal of the Day</div>
+          <div class="hero-visual__card hero-visual__card--2"><i class="bi bi-percent"></i> Up to 70% Off</div>
+          <div class="hero-visual__card hero-visual__card--3"><i class="bi bi-lightning-fill"></i> Lightning Deals</div>
+          <div class="hero-visual__bg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORY FILTER BAR -->
+<section class="category-bar" id="products">
+  <div class="container">
+    <div class="category-scroll">
+
+      <!-- ALL button -->
+      <a class="cat-pill {% if not active_category or active_category == 'All' %}cat-pill--active{% endif %}"
+         href="{{ url_for('index', q=query) if query else url_for('index') }}#products">
+        <i class="bi bi-grid-fill"></i> All
+      </a>
+
+      {% set cat_icons = {
+        'Electronics':    'bi-laptop',
+        'Home & Kitchen': 'bi-house-heart',
+        'Fashion':        'bi-handbag',
+        'Books':          'bi-book',
+        'Health & Beauty':'bi-heart-pulse',
+        'Toys & Games':   'bi-joystick',
+        'Sports':         'bi-bicycle',
+        'Automotive':     'bi-car-front',
+        'Other':          'bi-box-seam'
+      } %}
+
+      {% for cat in categories %}
+      <a class="cat-pill {% if active_category == cat %}cat-pill--active{% endif %}"
+         href="{{ url_for('index', category=cat, q=query) if query else url_for('index', category=cat) }}#products">
+        <i class="bi {{ cat_icons.get(cat, 'bi-tag') }}"></i> {{ cat }}
+      </a>
+      {% endfor %}
+
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCTS GRID -->
+<section class="products-section">
+  <div class="container">
+
+    <!-- Header row -->
+    <div class="products-header">
+      <div>
+        <h2 class="products-title">
+          <i class="bi bi-fire me-2 text-orange"></i>
+          {% if active_category and active_category != 'All' and query %}
+            {{ active_category }} — Results for "{{ query }}"
+          {% elif active_category and active_category != 'All' %}
+            <span class="active-cat-title">{{ active_category }}</span> Products
+          {% elif query %}
+            Results for "{{ query }}"
+          {% else %}
+            Today's Best Deals
+          {% endif %}
+          <span class="products-count">({{ total }} product{{ 's' if total != 1 else '' }})</span>
+        </h2>
+        <p class="products-sub">
+          {% if query or (active_category and active_category != 'All') %}
+            <a href="{{ url_for('index') }}" class="clear-filter">
+              <i class="bi bi-x-circle me-1"></i>Clear filters — Show all products
+            </a>
+          {% else %}
+            Updated daily — all links redirect to Amazon for purchase
+          {% endif %}
+        </p>
+      </div>
+      {% if session.get('admin_id') %}
+      <a href="{{ url_for('add_product') }}" class="btn amz-btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Add Product
+      </a>
+      {% endif %}
+    </div>
+
+    {% if products %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
+      {% for p in products %}
+      <div class="col">
+        <div class="deal-card">
+
+          <!-- Badge -->
+          {% set badges = [('🔥 Hot', 'badge--hot'), ('⚡ Deal', 'badge--deal'), ('⭐ Top Pick', 'badge--top'), ('💰 Save', 'badge--save')] %}
+          {% set b = badges[loop.index0 % 4] %}
+          <div class="deal-card__badge {{ b[1] }}">{{ b[0] }}</div>
+
+          <!-- Image -->
+          <a href="{{ url_for('product', product_id=p.id) }}" class="deal-card__img-wrap">
+            <img src="{{ p.image_url }}" alt="{{ p.name }}" loading="lazy"
+                 onerror="this.src='https://placehold.co/400x300/ff9900/232f3e?text=Amazon+Deal'" />
+            <div class="deal-card__overlay">
+              <span><i class="bi bi-eye-fill me-1"></i>View Deal</span>
+            </div>
+          </a>
+
+          <div class="deal-card__body">
+            <!-- Category tag -->
+            {% if p.category %}
+            <span class="deal-card__cat">{{ p.category }}</span>
+            {% endif %}
+
+            <h3 class="deal-card__title">{{ p.name }}</h3>
+            <p class="deal-card__desc">{{ p.description | truncate(80) }}</p>
+
+            <!-- Star rating -->
+            <div class="deal-card__stars">
+              {% if p.rating %}
+                {% for star in p.rating | stars %}
+                  {% if star == 'full' %}<i class="bi bi-star-fill"></i>
+                  {% elif star == 'half' %}<i class="bi bi-star-half"></i>
+                  {% else %}<i class="bi bi-star"></i>{% endif %}
+                {% endfor %}
+                <span class="rating-num">{{ '%.1f' | format(p.rating) }}</span>
+              {% else %}
+                <span class="text-muted small">No rating yet</span>
+              {% endif %}
+            </div>
+
+            <!-- Price -->
+            <div class="deal-card__price">
+              {% if p.price and p.price > 0 %}
+                <span class="price-tag">{{ p.price | inr }}</span>
+                <span class="price-amazon">on Amazon</span>
+              {% else %}
+                <span class="price-check">Check price on Amazon</span>
+              {% endif %}
+            </div>
+
+            <!-- CTA -->
+            <div class="deal-card__footer">
+              <a href="{{ p.affiliate_link }}" target="_blank" rel="noopener sponsored"
+                 class="btn amz-btn-buy w-100">
+                <i class="bi bi-amazon me-2"></i>Buy on Amazon
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Pagination — preserve search/category params -->
+    {% if pages > 1 %}
+    <nav class="mt-5 d-flex justify-content-center" aria-label="Pages">
+      <ul class="pagination amz-pagination">
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+          <a class="page-link"
+             href="{{ url_for('index', page=page-1, q=query, category=active_category) }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% for p_num in range(1, pages + 1) %}
+        <li class="page-item {% if p_num == page %}active{% endif %}">
+          <a class="page-link"
+             href="{{ url_for('index', page=p_num, q=query, category=active_category) }}">
+            {{ p_num }}
+          </a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page == pages %}disabled{% endif %}">
+          <a class="page-link"
+             href="{{ url_for('index', page=page+1, q=query, category=active_category) }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state__icon"><i class="bi bi-bag-x"></i></div>
+      <h3>No deals found</h3>
+      <p>
+        {% if query %}No products match "{{ query }}".
+        {% elif active_category %}No products in {{ active_category }} yet.
+        {% else %}No products have been added yet.
+        {% endif %}
+      </p>
+      <a href="{{ url_for('index') }}" class="btn amz-btn-primary mt-2">View All Products</a>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer-strip">
+  <div class="container">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <strong>Affiliate Disclosure:</strong> DealZone is a participant in the Amazon Associates Programme.
+    We earn a small commission when you purchase through our links, at no extra cost to you.
+  </div>
+</div>
+
+{% endblock %}

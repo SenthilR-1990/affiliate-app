@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Product — DealZone{% endblock %}
+
+{% block content %}
+<section class="form-section">
+  <div class="container">
+    <div class="form-card mx-auto">
+
+      <div class="form-card__header">
+        <a href="{{ url_for('dashboard') }}" class="btn-back-icon">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="form-card__title">
+          {% if action == 'Add' %}
+            <i class="bi bi-plus-circle-fill me-2"></i>Add New Product
+          {% else %}
+            <i class="bi bi-pencil-square me-2"></i>Edit Product
+          {% endif %}
+        </h2>
+      </div>
+
+      <form method="POST" novalidate>
+
+        <!-- Product Name -->
+        <div class="mb-4">
+          <label for="name" class="form-label">Product Name <span class="text-danger">*</span></label>
+          <input type="text" id="name" name="name" class="form-control amz-input"
+                 placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
+                 value="{{ product.name if product else '' }}" required />
+        </div>
+
+        <!-- Description -->
+        <div class="mb-4">
+          <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+          <textarea id="description" name="description" class="form-control amz-input"
+                    rows="4" placeholder="Write a compelling product description…"
+                    required>{{ product.description if product else '' }}</textarea>
+        </div>
+
+        <!-- Image URL -->
+        <div class="mb-4">
+          <label for="image_url" class="form-label">Image URL <span class="text-danger">*</span></label>
+          <div class="input-group amz-input-group">
+            <span class="input-group-text"><i class="bi bi-image-fill"></i></span>
+            <input type="url" id="image_url" name="image_url" class="form-control amz-input"
+                   placeholder="https://m.media-amazon.com/images/…"
+                   value="{{ product.image_url if product else '' }}" required />
+            <button class="input-group-text preview-btn" type="button" id="previewBtn">Preview</button>
+          </div>
+          <div id="imgPreview" class="img-preview-wrap mt-2 {% if not (product and product.image_url) %}d-none{% endif %}">
+            <img id="previewImg" src="{{ product.image_url if product else '' }}" alt="Preview" />
+          </div>
+        </div>
+
+        <!-- Affiliate Link -->
+        <div class="mb-4">
+          <label for="affiliate_link" class="form-label">Amazon Affiliate Link <span class="text-danger">*</span></label>
+          <div class="input-group amz-input-group">
+            <span class="input-group-text"><i class="bi bi-amazon"></i></span>
+            <input type="url" id="affiliate_link" name="affiliate_link" class="form-control amz-input"
+                   placeholder="https://amzn.to/xxxxxxx"
+                   value="{{ product.affiliate_link if product else '' }}" required />
+          </div>
+          <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>Use your Amazon Associates tracking link</small>
+        </div>
+
+        <!-- Price, Rating, Category — row -->
+        <div class="row g-3 mb-4">
+
+          <!-- Price -->
+          <div class="col-md-4">
+            <label for="price" class="form-label">
+              Price (₹) <span class="text-muted small fw-normal">(optional)</span>
+            </label>
+            <div class="input-group amz-input-group">
+              <span class="input-group-text fw-700">₹</span>
+              <input type="number" id="price" name="price" class="form-control amz-input"
+                     placeholder="e.g. 1299" min="0" step="0.01"
+                     value="{{ product.price if product and product.price else '' }}" />
+            </div>
+          </div>
+
+          <!-- Rating -->
+          <div class="col-md-4">
+            <label for="rating" class="form-label">
+              Rating (0–5) <span class="text-muted small fw-normal">(optional)</span>
+            </label>
+            <div class="input-group amz-input-group">
+              <span class="input-group-text text-orange"><i class="bi bi-star-fill"></i></span>
+              <input type="number" id="rating" name="rating" class="form-control amz-input"
+                     placeholder="e.g. 4.5" min="0" max="5" step="0.1"
+                     value="{{ product.rating if product and product.rating else '' }}" />
+            </div>
+            <!-- Live star preview -->
+            <div class="star-preview mt-1" id="starPreview"></div>
+          </div>
+
+          <!-- Category -->
+          <div class="col-md-4">
+            <label for="category" class="form-label">Category</label>
+            <select id="category" name="category" class="form-select amz-input">
+              {% for cat in categories %}
+              <option value="{{ cat }}"
+                {% if product and product.category == cat %}selected
+                {% elif not product and cat == 'Other' %}selected
+                {% endif %}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+          <a href="{{ url_for('dashboard') }}" class="btn amz-btn-cancel">Cancel</a>
+          <button type="submit" class="btn amz-btn-primary">
+            {% if action == 'Add' %}
+              <i class="bi bi-plus-lg me-1"></i>Add Product
+            {% else %}
+              <i class="bi bi-check-lg me-1"></i>Save Changes
+            {% endif %}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Image preview
+const previewBtn = document.getElementById('previewBtn');
+const previewWrap = document.getElementById('imgPreview');
+const previewImg = document.getElementById('previewImg');
+const imgUrlInput = document.getElementById('image_url');
+
+previewBtn.addEventListener('click', () => {
+  const url = imgUrlInput.value.trim();
+  if (url) { previewImg.src = url; previewWrap.classList.remove('d-none'); }
+});
+imgUrlInput.addEventListener('input', () => {
+  if (!imgUrlInput.value.trim()) previewWrap.classList.add('d-none');
+});
+
+// Live star rating preview
+const ratingInput = document.getElementById('rating');
+const starPreview = document.getElementById('starPreview');
+
+function renderStars(val) {
+  const v = parseFloat(val) || 0;
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    if (v >= i + 1) html += '<i class="bi bi-star-fill text-orange"></i>';
+    else if (v >= i + 0.5) html += '<i class="bi bi-star-half text-orange"></i>';
+    else html += '<i class="bi bi-star text-muted"></i>';
+  }
+  html += `<span class="ms-1 small text-muted">${v > 0 ? v.toFixed(1) + ' / 5' : ''}</span>`;
+  starPreview.innerHTML = html;
+}
+
+ratingInput.addEventListener('input', () => renderStars(ratingInput.value));
+renderStars(ratingInput.value); // init on page load
+</script>
+{% endblock %}

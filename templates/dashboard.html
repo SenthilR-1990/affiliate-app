@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — DealZone{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="container">
+
+    <div class="dashboard-header">
+      <div>
+        <h1 class="dashboard-title"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+        <p class="text-muted mb-0">Manage your Amazon affiliate products</p>
+      </div>
+      <a href="{{ url_for('add_product') }}" class="btn amz-btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Add Product
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-4 col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon"><i class="bi bi-box-seam-fill"></i></div>
+          <div>
+            <div class="stat-value">{{ products | length }}</div>
+            <div class="stat-label">Total Products</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard search -->
+    <form class="mb-3 d-flex gap-2" method="GET" action="{{ url_for('dashboard') }}">
+      <input type="text" name="q" class="form-control amz-input" style="max-width:320px;"
+             placeholder="Search products…" value="{{ q or '' }}" />
+      <button type="submit" class="btn amz-btn-primary px-3"><i class="bi bi-search"></i></button>
+      {% if q %}<a href="{{ url_for('dashboard') }}" class="btn amz-btn-cancel">Clear</a>{% endif %}
+    </form>
+
+    {% if products %}
+    <div class="table-responsive amz-table-wrap">
+      <table class="table amz-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Image</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Rating</th>
+            <th>Affiliate Link</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td class="text-muted small">{{ p.id }}</td>
+            <td>
+              <img src="{{ p.image_url }}" alt="{{ p.name }}" class="amz-thumb"
+                   onerror="this.src='https://placehold.co/60x60/ff9900/232f3e?text=?'" />
+            </td>
+            <td class="fw-600">{{ p.name }}</td>
+            <td>
+              {% if p.category %}
+              <span class="cat-badge">{{ p.category }}</span>
+              {% else %}<span class="text-muted small">—</span>{% endif %}
+            </td>
+            <td>
+              <span class="fw-700 text-orange">{{ p.price | inr }}</span>
+            </td>
+            <td>
+              {% if p.rating %}
+              <div class="dash-stars">
+                {% for star in p.rating | stars %}
+                  {% if star == 'full' %}<i class="bi bi-star-fill"></i>
+                  {% elif star == 'half' %}<i class="bi bi-star-half"></i>
+                  {% else %}<i class="bi bi-star"></i>{% endif %}
+                {% endfor %}
+                <span class="small ms-1">{{ '%.1f' | format(p.rating) }}</span>
+              </div>
+              {% else %}<span class="text-muted small">—</span>{% endif %}
+            </td>
+            <td>
+              <a href="{{ p.affiliate_link }}" target="_blank" class="amz-link">
+                <i class="bi bi-amazon me-1"></i>View
+              </a>
+            </td>
+            <td class="text-center">
+              <div class="d-flex gap-2 justify-content-center">
+                <a href="{{ url_for('product', product_id=p.id) }}" class="btn btn-sm amz-icon-btn" title="View">
+                  <i class="bi bi-eye-fill"></i>
+                </a>
+                <a href="{{ url_for('edit_product', product_id=p.id) }}" class="btn btn-sm amz-icon-btn--warn" title="Edit">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+                <form action="{{ url_for('delete_product', product_id=p.id) }}" method="POST"
+                      class="d-inline" onsubmit="return confirm('Delete \'{{ p.name }}\'?')">
+                  <button type="submit" class="btn btn-sm amz-icon-btn--danger" title="Delete">
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state__icon"><i class="bi bi-bag-x"></i></div>
+      <h3>No products {% if q %}matching "{{ q }}"{% else %}yet{% endif %}</h3>
+      <p>{% if q %}<a href="{{ url_for('dashboard') }}">Clear search</a>{% else %}Add your first Amazon affiliate product to get started.{% endif %}</p>
+      {% if not q %}
+      <a href="{{ url_for('add_product') }}" class="btn amz-btn-primary mt-2">
+        <i class="bi bi-plus-lg me-1"></i>Add Product
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}
