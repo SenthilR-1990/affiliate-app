@@ -19,6 +19,26 @@ CATEGORIES = [
     'Health & Beauty', 'Toys & Games', 'Sports', 'Automotive', 'Other'
 ]
 
+SUBCATEGORIES = {
+    'Electronics':     ['Headphones', 'Mobiles', 'Chargers', 'Laptops', 'Tablets',
+                        'Cameras', 'Smart Watches', 'Speakers', 'TVs', 'Accessories'],
+    'Home & Kitchen':  ['Cookware', 'Appliances', 'Furniture', 'Bedding', 'Storage',
+                        'Cleaning', 'Decor', 'Kitchen Tools'],
+    'Fashion':         ["Men's Clothing", "Women's Clothing", 'Footwear',
+                        'Bags & Wallets', 'Watches', 'Sunglasses', 'Jewellery'],
+    'Books':           ['Fiction', 'Non-Fiction', 'Self-Help', 'Technology',
+                        'Business', "Children's", 'Comics & Manga'],
+    'Health & Beauty': ['Skincare', 'Haircare', 'Supplements', 'Personal Care',
+                        'Fitness Equipment', 'Fragrances'],
+    'Toys & Games':    ['Action Figures', 'Board Games', 'Educational Toys',
+                        'Outdoor Play', 'Puzzles', 'Remote Control'],
+    'Sports':          ['Fitness', 'Outdoor Sports', 'Cricket', 'Football',
+                        'Cycling', 'Yoga', 'Swimming'],
+    'Automotive':      ['Car Accessories', 'Bike Accessories', 'Car Electronics',
+                        'Cleaning', 'Tools'],
+    'Other':           [],
+}
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class Admin(db.Model):
@@ -40,8 +60,9 @@ class Product(db.Model):
     image_url      = db.Column(db.String(500), nullable=False)
     affiliate_link = db.Column(db.String(500), nullable=False)
     price          = db.Column(db.Float, nullable=True, default=0.0)
-    rating         = db.Column(db.Float, nullable=True, default=0.0)   # 0.0 – 5.0
+    rating         = db.Column(db.Float, nullable=True, default=0.0)
     category       = db.Column(db.String(100), nullable=True, default='Other')
+    subcategory    = db.Column(db.String(100), nullable=True, default='')
 
     def to_dict(self):
         return {
@@ -53,6 +74,7 @@ class Product(db.Model):
             'price': self.price,
             'rating': self.rating,
             'category': self.category,
+            'subcategory': self.subcategory,
         }
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -70,17 +92,19 @@ def login_required(f):
 
 @app.route('/')
 def index():
-    page     = request.args.get('page', 1, type=int)
-    query    = request.args.get('q', '').strip()
-    category = request.args.get('category', '').strip()
+    page        = request.args.get('page', 1, type=int)
+    query       = request.args.get('q', '').strip()
+    category    = request.args.get('category', '').strip()
+    subcategory = request.args.get('subcategory', '').strip()
 
     qry = Product.query
 
-    # ── Category filter — exact match ─────────────────────────────────────────
     if category and category != 'All':
         qry = qry.filter(Product.category == category)
 
-    # ── Search filter — only on name and description, NOT category ────────────
+    if subcategory:
+        qry = qry.filter(Product.subcategory == subcategory)
+
     if query:
         like = f'%{query}%'
         qry = qry.filter(
@@ -105,7 +129,9 @@ def index():
                            total=total,
                            query=query,
                            active_category=category,
-                           categories=CATEGORIES)
+                           active_subcategory=subcategory,
+                           categories=CATEGORIES,
+                           subcategories=SUBCATEGORIES)
 
 
 @app.route('/product/<int:product_id>')
@@ -156,7 +182,8 @@ def dashboard():
             db.or_(Product.name.ilike(like), Product.category.ilike(like))
         )
     products = qry.order_by(Product.id.desc()).all()
-    return render_template('dashboard.html', products=products, categories=CATEGORIES, q=q)
+    return render_template('dashboard.html', products=products,
+                           categories=CATEGORIES, subcategories=SUBCATEGORIES, q=q)
 
 
 @app.route('/admin/product/add', methods=['GET', 'POST'])
@@ -168,6 +195,7 @@ def add_product():
         image_url      = request.form.get('image_url', '').strip()
         affiliate_link = request.form.get('affiliate_link', '').strip()
         category       = request.form.get('category', 'Other').strip()
+        subcategory    = request.form.get('subcategory', '').strip()
         try:
             price  = float(request.form.get('price', 0) or 0)
             rating = float(request.form.get('rating', 0) or 0)
@@ -178,17 +206,19 @@ def add_product():
 
         if not all([name, description, image_url, affiliate_link]):
             flash('Name, description, image URL and affiliate link are required.', 'danger')
-            return render_template('product_form.html', action='Add', product=None, categories=CATEGORIES)
+            return render_template('product_form.html', action='Add', product=None,
+                                   categories=CATEGORIES, subcategories=SUBCATEGORIES)
 
         p = Product(name=name, description=description, image_url=image_url,
                     affiliate_link=affiliate_link, price=price,
-                    rating=rating, category=category)
+                    rating=rating, category=category, subcategory=subcategory)
         db.session.add(p)
         db.session.commit()
         flash(f'"{name}" added successfully!', 'success')
         return redirect(url_for('dashboard'))
 
-    return render_template('product_form.html', action='Add', product=None, categories=CATEGORIES)
+    return render_template('product_form.html', action='Add', product=None,
+                           categories=CATEGORIES, subcategories=SUBCATEGORIES)
 
 
 @app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
@@ -202,6 +232,7 @@ def edit_product(product_id):
         p.image_url      = request.form.get('image_url', '').strip()
         p.affiliate_link = request.form.get('affiliate_link', '').strip()
         p.category       = request.form.get('category', 'Other').strip()
+        p.subcategory    = request.form.get('subcategory', '').strip()
         try:
             p.price  = float(request.form.get('price', 0) or 0)
             p.rating = float(request.form.get('rating', 0) or 0)
@@ -212,13 +243,15 @@ def edit_product(product_id):
 
         if not all([p.name, p.description, p.image_url, p.affiliate_link]):
             flash('Name, description, image URL and affiliate link are required.', 'danger')
-            return render_template('product_form.html', action='Edit', product=p, categories=CATEGORIES)
+            return render_template('product_form.html', action='Edit', product=p,
+                                   categories=CATEGORIES, subcategories=SUBCATEGORIES)
 
         db.session.commit()
         flash(f'"{p.name}" updated successfully!', 'success')
         return redirect(url_for('dashboard'))
 
-    return render_template('product_form.html', action='Edit', product=p, categories=CATEGORIES)
+    return render_template('product_form.html', action='Edit', product=p,
+                           categories=CATEGORIES, subcategories=SUBCATEGORIES)
 
 
 @app.route('/admin/product/delete/<int:product_id>', methods=['POST'])
@@ -232,11 +265,18 @@ def delete_product(product_id):
     return redirect(url_for('dashboard'))
 
 
+# ── API: subcategories for dynamic form ──────────────────────────────────────
+
+@app.route('/api/subcategories/<path:category>')
+def get_subcategories(category):
+    subs = SUBCATEGORIES.get(category, [])
+    return jsonify(subs)
+
+
 # ── Jinja helpers ─────────────────────────────────────────────────────────────
 
 @app.template_filter('stars')
 def stars_filter(rating):
-    """Return list of star types: 'full', 'half', 'empty' for a 0-5 rating."""
     stars = []
     r = float(rating or 0)
     for i in range(5):
@@ -251,7 +291,6 @@ def stars_filter(rating):
 
 @app.template_filter('inr')
 def inr_filter(value):
-    """Format a number as ₹1,299"""
     try:
         v = float(value)
         if v == 0:
@@ -266,12 +305,26 @@ def inr_filter(value):
 def init_db():
     with app.app_context():
         db.create_all()
-        if not Admin.query.filter_by(username='admin').first():
+
+        # Migrate: add subcategory column if missing (for existing DBs)
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(db.text(
+                    'ALTER TABLE product ADD COLUMN subcategory VARCHAR(100) DEFAULT ""'
+                ))
+                conn.commit()
+                print('✅  Migrated: subcategory column added to existing DB')
+            except Exception:
+                pass  # Column already exists — fine
+
+        # Create or update admin with new password
+        admin = Admin.query.filter_by(username='admin').first()
+        if not admin:
             admin = Admin(username='admin')
-            admin.set_password('admin123')
             db.session.add(admin)
-            db.session.commit()
-            print('✅  Default admin created  →  username: admin | password: admin123')
+        admin.set_password('Admin@1234')
+        db.session.commit()
+        print('✅  Admin ready  →  username: admin | password: Admin@1234')
 
 
 if __name__ == '__main__':

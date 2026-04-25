@@ -64,11 +64,10 @@
           <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle me-1"></i>Use your Amazon Associates tracking link</small>
         </div>
 
-        <!-- Price, Rating, Category — row -->
+        <!-- Price, Rating — row -->
         <div class="row g-3 mb-4">
-
           <!-- Price -->
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label for="price" class="form-label">
               Price (₹) <span class="text-muted small fw-normal">(optional)</span>
             </label>
@@ -81,7 +80,7 @@
           </div>
 
           <!-- Rating -->
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label for="rating" class="form-label">
               Rating (0–5) <span class="text-muted small fw-normal">(optional)</span>
             </label>
@@ -91,13 +90,17 @@
                      placeholder="e.g. 4.5" min="0" max="5" step="0.1"
                      value="{{ product.rating if product and product.rating else '' }}" />
             </div>
-            <!-- Live star preview -->
             <div class="star-preview mt-1" id="starPreview"></div>
           </div>
+        </div>
 
+        <!-- Category & Subcategory — row -->
+        <div class="row g-3 mb-4">
           <!-- Category -->
-          <div class="col-md-4">
-            <label for="category" class="form-label">Category</label>
+          <div class="col-md-6">
+            <label for="category" class="form-label">
+              <i class="bi bi-tag-fill me-1 text-orange"></i>Category
+            </label>
             <select id="category" name="category" class="form-select amz-input">
               {% for cat in categories %}
               <option value="{{ cat }}"
@@ -108,6 +111,26 @@
             </select>
           </div>
 
+          <!-- Subcategory (dynamic) -->
+          <div class="col-md-6" id="subcategoryWrapper">
+            <label for="subcategory" class="form-label">
+              <i class="bi bi-tags-fill me-1 text-orange"></i>Subcategory
+              <span class="text-muted small fw-normal">(optional)</span>
+            </label>
+            <select id="subcategory" name="subcategory" class="form-select amz-input">
+              <option value="">— Select subcategory —</option>
+              {% set current_cat = product.category if product else 'Other' %}
+              {% for sub in subcategories.get(current_cat, []) %}
+              <option value="{{ sub }}"
+                {% if product and product.subcategory == sub %}selected{% endif %}>
+                {{ sub }}
+              </option>
+              {% endfor %}
+            </select>
+            <small class="text-muted mt-1 d-block" id="subcatHint">
+              <i class="bi bi-info-circle me-1"></i>Choose a category first to see subcategories
+            </small>
+          </div>
         </div>
 
         <div class="form-actions">
@@ -128,11 +151,48 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Pass subcategories map to JS -->
 <script>
-// Image preview
-const previewBtn = document.getElementById('previewBtn');
+const SUBCATEGORIES = {{ subcategories | tojson }};
+
+// ── Category → Subcategory dynamic update ────────────────────────────────────
+const categorySelect    = document.getElementById('category');
+const subcategorySelect = document.getElementById('subcategory');
+const subcatHint        = document.getElementById('subcatHint');
+const currentSubcat     = "{{ product.subcategory if product and product.subcategory else '' }}";
+
+function populateSubcategories(cat, selectedSub) {
+  const subs = SUBCATEGORIES[cat] || [];
+  subcategorySelect.innerHTML = '<option value="">— Select subcategory —</option>';
+
+  if (subs.length === 0) {
+    subcatHint.innerHTML = '<i class="bi bi-info-circle me-1"></i>No subcategories for this category';
+    subcategorySelect.disabled = true;
+  } else {
+    subcatHint.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>' + subs.length + ' subcategories available';
+    subcategorySelect.disabled = false;
+    subs.forEach(sub => {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      if (sub === selectedSub) opt.selected = true;
+      subcategorySelect.appendChild(opt);
+    });
+  }
+}
+
+// Init on page load
+populateSubcategories(categorySelect.value, currentSubcat);
+
+// Update on category change
+categorySelect.addEventListener('change', () => {
+  populateSubcategories(categorySelect.value, '');
+});
+
+// ── Image preview ─────────────────────────────────────────────────────────────
+const previewBtn  = document.getElementById('previewBtn');
 const previewWrap = document.getElementById('imgPreview');
-const previewImg = document.getElementById('previewImg');
+const previewImg  = document.getElementById('previewImg');
 const imgUrlInput = document.getElementById('image_url');
 
 previewBtn.addEventListener('click', () => {
@@ -143,7 +203,7 @@ imgUrlInput.addEventListener('input', () => {
   if (!imgUrlInput.value.trim()) previewWrap.classList.add('d-none');
 });
 
-// Live star rating preview
+// ── Live star rating preview ──────────────────────────────────────────────────
 const ratingInput = document.getElementById('rating');
 const starPreview = document.getElementById('starPreview');
 
@@ -160,6 +220,6 @@ function renderStars(val) {
 }
 
 ratingInput.addEventListener('input', () => renderStars(ratingInput.value));
-renderStars(ratingInput.value); // init on page load
+renderStars(ratingInput.value);
 </script>
 {% endblock %}

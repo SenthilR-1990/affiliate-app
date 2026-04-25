@@ -1,4 +1,10 @@
 {% extends 'base.html' %}
+{% block head %}
+<script>
+  window.SENZONE_SUBS       = {{ subcategories | tojson }};
+  window.SENZONE_ACTIVE_SUB = {{ (active_subcategory or '') | tojson }};
+</script>
+{% endblock %}
 {% block title %}SenZone — Best Amazon Deals Today{% endblock %}
 
 {% block content %}
@@ -58,10 +64,22 @@
       } %}
 
       {% for cat in categories %}
-      <a class="cat-pill {% if active_category == cat %}cat-pill--active{% endif %}"
-         href="{{ url_for('index', category=cat, q=query) if query else url_for('index', category=cat) }}#products">
-        <i class="bi {{ cat_icons.get(cat, 'bi-tag') }}"></i> {{ cat }}
-      </a>
+        {% set subs = subcategories.get(cat, []) %}
+        {% if subs %}
+          {# Pill with subcategories — dropdown built/positioned by JS on <body> #}
+          <a class="cat-pill cat-pill--has-sub {% if active_category == cat and not active_subcategory %}cat-pill--active{% endif %}"
+             href="#products"
+             data-cat="{{ cat }}">
+            <i class="bi {{ cat_icons.get(cat, 'bi-tag') }}"></i>
+            {{ cat }}
+            <i class="bi bi-chevron-down cat-pill__arrow"></i>
+          </a>
+        {% else %}
+          <a class="cat-pill {% if active_category == cat %}cat-pill--active{% endif %}"
+             href="{{ url_for('index', category=cat, q=query) if query else url_for('index', category=cat) }}#products">
+            <i class="bi {{ cat_icons.get(cat, 'bi-tag') }}"></i> {{ cat }}
+          </a>
+        {% endif %}
       {% endfor %}
 
     </div>
@@ -77,7 +95,10 @@
       <div>
         <h2 class="products-title">
           <i class="bi bi-fire me-2 text-orange"></i>
-          {% if active_category and active_category != 'All' and query %}
+          {% if active_subcategory %}
+            <span class="active-cat-title">{{ active_subcategory }}</span>
+            <span class="text-muted small fw-normal"> in {{ active_category }}</span>
+          {% elif active_category and active_category != 'All' and query %}
             {{ active_category }} — Results for "{{ query }}"
           {% elif active_category and active_category != 'All' %}
             <span class="active-cat-title">{{ active_category }}</span> Products
@@ -89,7 +110,7 @@
           <span class="products-count">({{ total }} product{{ 's' if total != 1 else '' }})</span>
         </h2>
         <p class="products-sub">
-          {% if query or (active_category and active_category != 'All') %}
+          {% if query or (active_category and active_category != 'All') or active_subcategory %}
             <a href="{{ url_for('index') }}" class="clear-filter">
               <i class="bi bi-x-circle me-1"></i>Clear filters — Show all products
             </a>
@@ -126,10 +147,15 @@
           </a>
 
           <div class="deal-card__body">
-            <!-- Category tag -->
-            {% if p.category %}
-            <span class="deal-card__cat">{{ p.category }}</span>
-            {% endif %}
+            <!-- Category / Subcategory tags -->
+            <div class="deal-card__tags">
+              {% if p.category %}
+              <span class="deal-card__cat">{{ p.category }}</span>
+              {% endif %}
+              {% if p.subcategory %}
+              <span class="deal-card__subcat">{{ p.subcategory }}</span>
+              {% endif %}
+            </div>
 
             <h3 class="deal-card__title">{{ p.name }}</h3>
             <p class="deal-card__desc">{{ p.description | truncate(80) }}</p>
@@ -172,27 +198,27 @@
       {% endfor %}
     </div>
 
-    <!-- Pagination — preserve search/category params -->
+    <!-- Pagination -->
     {% if pages > 1 %}
     <nav class="mt-5 d-flex justify-content-center" aria-label="Pages">
       <ul class="pagination amz-pagination">
         <li class="page-item {% if page == 1 %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('index', page=page-1, q=query, category=active_category) }}">
+             href="{{ url_for('index', page=page-1, q=query, category=active_category, subcategory=active_subcategory) }}">
             <i class="bi bi-chevron-left"></i>
           </a>
         </li>
         {% for p_num in range(1, pages + 1) %}
         <li class="page-item {% if p_num == page %}active{% endif %}">
           <a class="page-link"
-             href="{{ url_for('index', page=p_num, q=query, category=active_category) }}">
+             href="{{ url_for('index', page=p_num, q=query, category=active_category, subcategory=active_subcategory) }}">
             {{ p_num }}
           </a>
         </li>
         {% endfor %}
         <li class="page-item {% if page == pages %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('index', page=page+1, q=query, category=active_category) }}">
+             href="{{ url_for('index', page=page+1, q=query, category=active_category, subcategory=active_subcategory) }}">
             <i class="bi bi-chevron-right"></i>
           </a>
         </li>
@@ -205,7 +231,8 @@
       <div class="empty-state__icon"><i class="bi bi-bag-x"></i></div>
       <h3>No deals found</h3>
       <p>
-        {% if query %}No products match "{{ query }}".
+        {% if active_subcategory %}No products in {{ active_subcategory }} yet.
+        {% elif query %}No products match "{{ query }}".
         {% elif active_category %}No products in {{ active_category }} yet.
         {% else %}No products have been added yet.
         {% endif %}
@@ -227,3 +254,5 @@
 </div>
 
 {% endblock %}
+
+

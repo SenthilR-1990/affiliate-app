@@ -47,6 +47,7 @@
             <th>Category</th>
             <th>Price</th>
             <th>Rating</th>
+            <th>Subcategory</th>
             <th>Affiliate Link</th>
             <th class="text-center">Actions</th>
           </tr>
@@ -63,6 +64,11 @@
             <td>
               {% if p.category %}
               <span class="cat-badge">{{ p.category }}</span>
+              {% else %}<span class="text-muted small">—</span>{% endif %}
+            </td>
+            <td>
+              {% if p.subcategory %}
+              <span class="cat-badge" style="background:rgba(255,153,0,.12);color:#b45309;">{{ p.subcategory }}</span>
               {% else %}<span class="text-muted small">—</span>{% endif %}
             </td>
             <td>
